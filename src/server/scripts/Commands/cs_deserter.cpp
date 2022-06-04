@@ -202,7 +202,15 @@ public:
     static bool HandleDeserterRemoveAll(ChatHandler* handler, bool isInstance, Optional<int32> maxTime)
     {
         int32 remainTime = maxTime.value_or(isInstance ? 1800 : 900);
-        CharacterDatabase.Execute("DELETE FROM character_aura WHERE spell = {} AND remainTime <= {}", isInstance ? LFG_SPELL_DUNGEON_DESERTER : BG_SPELL_DESERTER, remainTime * IN_MILLISECONDS);
+
+        if (remainTime < 0)
+        {
+            CharacterDatabase.Execute("DELETE FROM character_aura WHERE spell = {}", isInstance ? LFG_SPELL_DUNGEON_DESERTER : BG_SPELL_DESERTER);
+        }
+        else
+        {
+            CharacterDatabase.Execute("DELETE FROM character_aura WHERE spell = {} AND remainTime <= {}", isInstance ? LFG_SPELL_DUNGEON_DESERTER : BG_SPELL_DESERTER, remainTime * IN_MILLISECONDS);
+        }
 
         std::shared_lock<std::shared_mutex> lock(*HashMapHolder<Player>::GetLock());
         HashMapHolder<Player>::MapType const& onlinePlayerList = ObjectAccessor::GetPlayers();
@@ -210,7 +218,7 @@ public:
         {
             Player* player = itr->second;
             Aura* aura = player->GetAura(isInstance ? LFG_SPELL_DUNGEON_DESERTER : BG_SPELL_DESERTER);
-            if (aura && aura->GetDuration() <= remainTime * IN_MILLISECONDS)
+            if (aura && (remainTime < 0 || aura->GetDuration() <= remainTime * IN_MILLISECONDS))
             {
                 player->RemoveAura(isInstance ? LFG_SPELL_DUNGEON_DESERTER : BG_SPELL_DESERTER);
             }
